@@ -1,27 +1,33 @@
-
 from collections import defaultdict
 from million._config import NULL_VALUE
 import cPickle
 import json
 import numpy as np
+import pandas as pd
 import os
 import seamless as ss
 import logging
+from numba import jit
+
 
 def ensemble_preds(predictions, weights):
     return np.average(predictions, weights=weights, axis=0)
 
+
 def get_mae_loss(y, ypred):
     return np.sum([abs(y[i]-ypred[i]) for i in range(len(y))]) / float(len(y))
+
 
 def get_test_ixs(targets):
     ixs = targets == NULL_VALUE
     return ixs
 
+
 def ix_to_bool(ix, length):
     boolean_mask = np.repeat(False, length)
     boolean_mask[ix] = True
     return boolean_mask
+
 
 def get_group_ixs(*group_ids, **kwargs):
     """ Returns a dictionary {groupby_id: group_ix}.
@@ -35,6 +41,7 @@ def get_group_ixs(*group_ids, **kwargs):
     grouped_ixs = _get_group_ixs(group_ids)
     grouped_ixs = _convert_int_indices_to_bool_indices_if_necessary(grouped_ixs, kwargs)
     return grouped_ixs
+
 
 def _ensure_group_ids_hashable(group_ids):
     if len(group_ids) == 1:
@@ -51,6 +58,7 @@ def _ensure_group_ids_hashable(group_ids):
 
     return hashable_group_ids
 
+
 def _convert_int_indices_to_bool_indices_if_necessary(ixs, kwargs):
     bools = kwargs.get('bools', False)
     if bools:
@@ -59,11 +67,13 @@ def _convert_int_indices_to_bool_indices_if_necessary(ixs, kwargs):
         ixs = {k: ix_to_bool(v, length) for k, v in ixs.iteritems()}
     return ixs
 
+
 def get_logger(file_name):
     logger_format = '%(asctime)s - %(filename)s - %(message)s'
     logging.basicConfig(filename=file_name, level=logging.DEBUG, format=logger_format)
     logger = logging.getLogger()
     return logger
+
 
 def _get_group_ixs(ids):
     """ Returns a dictionary {groupby_id: group_ix}.
@@ -76,14 +86,17 @@ def _get_group_ixs(ids):
     id_hash = {k:np.array(v) for k,v in id_hash.iteritems()}
     return id_hash
 
+
 def read_pickle(path):
     with open(path, 'rb') as f:
         obj = cPickle.load(f)
     return obj
 
+
 def write_pickle(obj, path):
     with open(path, 'wb') as f:
         cPickle.dump(obj, f, protocol=cPickle.HIGHEST_PROTOCOL)
+
 
 def dropbox():
     path = os.path.expanduser('~/Dropbox/')
@@ -91,15 +104,18 @@ def dropbox():
         path = '/Dropbox/'
     return path
 
+
 def experiments():
     dropbox_path = dropbox()
     path = dropbox_path + 'experiments/'
     return path
 
+
 def write_results_to_json(results_dict, path):
     with open(path, 'a') as f:
         json_format_data = json.dumps(results_dict)
         f.write(json_format_data + '\n')
+
 
 def read_special_json(path):
     with open(path, 'r') as f:
@@ -111,8 +127,50 @@ def read_special_json(path):
             data.append(json.loads(d))
     return ss.DDF(data)
 
+
 def convert_to_python_types(dic):
     for key in dic:
         dic[key] = dic[key].item()
     return dic
 
+
+def rank_ensebmle(preds, weights):
+    predictions = []
+    for pred in preds:
+        predictions.append(pd.Series(pred).rank().values / float(len(pred)))
+    ens_predictions = np.average(predictions, weights=weights, axis=0)
+    ens_predictions = np.clip(ens_predictions, 0, 1)
+    return ens_predictions
+
+
+@jit
+def eval_gini(y_true, y_prob):
+    """
+    Original author CPMP : https://www.kaggle.com/cpmpml
+    In kernel : https://www.kaggle.com/cpmpml/extremely-fast-gini-computation
+    """
+    y_true = np.asarray(y_true)
+    y_true = y_true[np.argsort(y_prob)]
+    ntrue = 0
+    gini = 0
+    delta = 0
+    n = len(y_true)
+    for i in range(n-1, -1, -1):
+        y_i = y_true[i]
+        ntrue += y_i
+        gini += y_i * delta
+        delta += 1 - y_i
+    gini = 1 - 2 * gini / (ntrue * (n - ntrue))
+    return gini
+
+
+def gini_xgb(preds, dtrain):
+    labels = dtrain.get_label()
+    gini_score = eval_gini(labels, preds)
+    return [('gini', gini_score)]
+
+
+def gini_lgb(preds, dtrain):
+    y = list(dtrain.get_label())
+    score = eval_gini(y, preds) / float(eval_gini(y, y))
+    return 'gini', score, True
