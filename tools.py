@@ -1,3 +1,4 @@
+from sklearn.ensemble import RandomForestRegressor as RFR
 from collections import defaultdict
 from million._config import NULL_VALUE
 import cPickle
@@ -83,7 +84,7 @@ def _get_group_ixs(ids):
     id_hash = defaultdict(list)
     for j, key in enumerate(ids):
         id_hash[key].append(j)
-    id_hash = {k:np.array(v) for k,v in id_hash.iteritems()}
+    id_hash = {k: np.array(v) for k, v in id_hash.iteritems()}
     return id_hash
 
 
@@ -174,3 +175,68 @@ def gini_lgb(preds, dtrain):
     y = list(dtrain.get_label())
     score = eval_gini(y, preds) / float(eval_gini(y, y))
     return 'gini', score, True
+
+
+def sample_params(random_func, columns, results_path, random=False):
+    if random:
+        params = random_func()
+    else:
+        params = sample_with_RFR(70, random_func, columns, results_path)
+    return params
+
+
+def sample_with_RFR(num_elements, random_func, columns, results_path):
+    # TODO: make sure this thing does one thing only
+    random_data = [random_func() for _ in range(num_elements)]
+    random_df = ss.DDF(random_data)
+    csv_df = ss.DDF.from_csv(results_path)
+    mm_train = csv_df[columns]
+    targets = csv_df['']
+    model = RFR(n_estimators=70)
+    model.fit(mm_train, targets)
+    predicted_losses = model.predict(random_df[columns])
+    best_prediction_ix = np.argmin(predicted_losses)
+    result = random_df.rowslice(best_prediction_ix)
+    result = result.to_dict()
+    result = {k: v[0] for k, v in result.items()}
+    if 'has_time' in result:  # catboost
+        result['has_time'] = bool(result['has_time'])
+        result['verbose'] = bool(result['verbose'])
+        result['use_best_model'] = bool(result['use_best_model'])
+    print 'Expected Loss: {}'.format(predicted_losses[best_prediction_ix])
+    return result
+
+
+def get_wale(y, ypred):
+    assert len(y) == len(ypred)
+    n = len(y)
+    value = np.sum([min(0.4, abs(y[i]-ypred[i])) for i in range(len(y))])
+    return value / float(n)
+
+
+def categorical_to_numeric(df, column):
+    def char_to_numeric(char):
+        return str(ord(char))
+
+    def text_to_numeric(text):
+        text = str(text).strip()
+        text = text[:10]
+        text = text.lower()
+        numeric_chars = map(char_to_numeric, text)
+        result = ''.join(numeric_chars)
+        result = float(result)
+        return result
+
+    result = map(text_to_numeric, df[column])
+    result = np.log(np.array(result))
+    return result
+
+
+def log_transform(targets):
+    return np.log(targets + 1)
+
+
+def inv_log_transform(targets):
+    return np.exp(targets) - 1
+
+
