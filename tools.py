@@ -16,7 +16,16 @@ def ensemble_preds(predictions, weights):
 
 
 def get_mae_loss(y, ypred):
-    return np.sum([abs(y[i]-ypred[i]) for i in range(len(y))]) / float(len(y))
+    assert len(y) == len(ypred)
+    n = len(y)
+    return np.sum([abs(y[i]-ypred[i]) for i in range(n)]) / float(n)
+
+
+def get_wale_loss(y, ypred):
+    assert len(y) == len(ypred)
+    n = len(y)
+    value = np.sum([min(0.4, abs(y[i]-ypred[i])) for i in range(n)])
+    return value / float(n)
 
 
 def get_test_ixs(targets):
@@ -205,13 +214,6 @@ def sample_with_RFR(num_elements, random_func, columns, results_path):
         result['use_best_model'] = bool(result['use_best_model'])
     print 'Expected Loss: {}'.format(predicted_losses[best_prediction_ix])
     return result
-
-
-def get_wale(y, ypred):
-    assert len(y) == len(ypred)
-    n = len(y)
-    value = np.sum([min(0.4, abs(y[i]-ypred[i])) for i in range(len(y))])
-    return value / float(n)
 
 
 def categorical_to_numeric(df, column):
