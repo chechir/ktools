@@ -200,7 +200,7 @@ def sample_with_RFR(num_elements, random_func, columns, results_path):
     random_df = ss.DDF(random_data)
     csv_df = ss.DDF.from_csv(results_path)
     mm_train = csv_df[columns]
-    targets = csv_df['']
+    targets = csv_df['wale']
     model = RFR(n_estimators=70)
     model.fit(mm_train, targets)
     predicted_losses = model.predict(random_df[columns])
