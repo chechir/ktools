@@ -186,21 +186,21 @@ def gini_lgb(preds, dtrain):
     return 'gini', score, True
 
 
-def sample_params(random_func, columns, results_path, random=False):
+def sample_params(random_func, columns, results_path, random=False, metric='mae'):
     if random:
         params = random_func()
     else:
-        params = sample_with_RFR(70, random_func, columns, results_path)
+        params = sample_with_RFR(70, random_func, columns, results_path, metric=metric)
     return params
 
 
-def sample_with_RFR(num_elements, random_func, columns, results_path):
+def sample_with_RFR(num_elements, random_func, columns, results_path, metric='mae'):
     # TODO: make sure this thing does one thing only
     random_data = [random_func() for _ in range(num_elements)]
     random_df = ss.DDF(random_data)
     csv_df = ss.DDF.from_csv(results_path)
     mm_train = csv_df[columns]
-    targets = csv_df['mae']
+    targets = csv_df[metric]
     model = RFR(n_estimators=70)
     model.fit(mm_train, targets)
     predicted_losses = model.predict(random_df[columns])
