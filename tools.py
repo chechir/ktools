@@ -39,6 +39,85 @@ def ix_to_bool(ix, length):
     return boolean_mask
 
 
+def fillna(array, na_value):
+    array = array.copy()
+    ix = np.isnan(array) | np.isinf(array)
+    if np.isscalar(na_value):
+        array[ix] = na_value
+    else:
+        array[ix] = na_value[ix]
+    return array
+
+
+def group_apply(values, group_ids, func, multiarg=False, strout=False):
+    if group_ids.ndim == 2:
+        group_ids = add_as_strings(*[group_ids[:, i] for i in range(group_ids.shape[1])], sep='_')
+
+    ix = np.argsort(group_ids, kind='mergesort')
+    sids = group_ids[ix]
+    cuts = sids[1:] != sids[:-1]
+    reverse = invert_argsort(ix)
+    values = values[ix]
+
+    if strout:
+        nvalues = np.prod(values.shape)
+        res = np.array([None]*nvalues).reshape(values.shape)
+    elif multiarg:
+        res = np.nan * np.zeros(len(values))
+    else:
+        res = np.nan * np.zeros(values.shape)
+
+    prevcut = 0
+    for cut in np.where(cuts)[0]+1:
+        if multiarg:
+            res[prevcut:cut] = func(*values[prevcut:cut].T)
+        else:
+            res[prevcut:cut] = func(values[prevcut:cut])
+        prevcut = cut
+    if multiarg:
+        res[prevcut:] = func(*values[prevcut:].T)
+    else:
+        res[prevcut:] = func(values[prevcut:])
+    revd = res[reverse]
+    return revd
+
+
+def invert_argsort(argsort_ix):
+    reverse = np.repeat(0, len(argsort_ix))
+    reverse[argsort_ix] = np.arange(len(argsort_ix))
+    return reverse
+
+
+def add_as_strings(*args, **kwargs):
+    result = args[0].astype(str)
+    sep = kwargs.get('sep')
+    if sep:
+        seperator = np.repeat(sep, len(result))
+    else:
+        seperator = None
+
+    for arr in args[1:]:
+        if seperator is not None:
+            result = _add_strings(result, seperator)
+        result = _add_strings(result, arr.astype(str))
+    return result
+
+
+def _add_strings(v, w):
+    return np.core.defchararray.add(v, w)
+
+
+def lag(v, init, shift=1):
+    w = np.nan * v
+    w[0:shift] = init
+    w[shift:] = v[:-shift]
+    return w
+
+
+def lagged_cumsum(v, init):
+    return lag(np.cumsum(v, axis=0), init)
+
+
 def get_group_ixs(*group_ids, **kwargs):
     """ Returns a dictionary {groupby_id: group_ix}.
 
@@ -125,17 +204,6 @@ def write_results_to_json(results_dict, path):
     with open(path, 'a') as f:
         json_format_data = json.dumps(results_dict)
         f.write(json_format_data + '\n')
-
-
-def read_special_json(path):
-    with open(path, 'r') as f:
-        raw = f.read()
-    raw_data = raw.split('\n')
-    data = []
-    for d in raw_data:
-        if d:
-            data.append(json.loads(d))
-    return ss.DDF(data)
 
 
 def convert_to_python_types(dic):
