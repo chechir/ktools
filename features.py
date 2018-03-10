@@ -1,12 +1,13 @@
 import numpy as np
+import pandas as pd
 from functools import partial
 
 from ktools import tools
 
 
 def lagged_ratio(df, groupby, calc_colname, fillna=-1):
-    ids = df[groupby]
-    result = tools.group_apply(df[calc_colname], ids, _lagged_ratio)
+    ids = df[groupby].values
+    result = tools.group_apply(df[calc_colname].values, ids, _lagged_ratio)
     result = tools.fillna(result, fillna)
     return result
 
@@ -23,7 +24,7 @@ def _lagged_ratio(v, mask_nans=True):
 
 def lagged_values_by_group(df, groupby, calc_colname, shift, fillna=-1):
     lag_func = partial(tools.lag, init=np.nan, shift=shift)
-    values = tools.group_apply(df[calc_colname], df[groupby], lag_func)
+    values = tools.group_apply(df[calc_colname].values, df[groupby].values, lag_func)
     values[~np.isfinite(values)] = fillna
     return values
 
@@ -49,5 +50,39 @@ def lagged_ratio_smoothing(df, col, groupby, smoothing_value=1,
 def count_by_group(df, groupby):
     def counter(group_ids):
         return np.arange(len(group_ids)).astype('float')
-    result = np.group_apply(df['win_flag'], df[groupby], counter)
+    result = tools.group_apply(df[groupby].values, df[groupby].values, counter)
     return result
+
+
+def ratio_smoothing(df_train, df_test, col, groupby, smoothing_value=1,
+                    min_samples_leaf=5, prior=0,
+                    smoothing=1):
+    """
+    Smoothing is computed like in the following paper by Daniele Micci-Barreca
+    https://kaggle2.blob.core.windows.net/forum-message-attachments/225952/7441/high%20cardinality%20categoricals.pdf
+    trn_series : training categorical feature as a pd.Series
+    tst_series : test categorical feature as a pd.Series
+    target : target data as a pd.Series
+    min_samples_leaf (int) : minimum samples to take category average into account
+    smoothing (int) : smoothing effect to balance categorical average vs prior
+    """
+
+    # Compute target mean
+    averages = df_train[[groupby, col]].groupby(by=groupby)[col].agg(["mean", "count"])
+    # Compute smoothing
+    smoothing = 1 / (1 + np.exp(-(averages["count"] - min_samples_leaf) / smoothing))
+
+    # The bigger the count the less full_avg is taken into account
+    averages[col] = prior * (1 - smoothing) + averages["mean"] * smoothing
+    averages.drop(["mean", "count"], axis=1, inplace=True)
+    # Apply averages to trn and tst series
+    # from here and apply tdd
+    # new_name = 'f:' + groupby
+    df_test_result = pd.merge(
+        df_test,
+        averages.reset_index().rename(columns={'index': groupby, col: 'average'}),
+        on=groupby,
+        how='left')['average'].fillna(prior)
+    # pd.merge does not keep the index so restore it
+    df_test_result.index = df_test.index
+    return df_test_result.values
