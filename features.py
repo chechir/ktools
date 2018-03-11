@@ -39,7 +39,7 @@ def lagged_ratio_smoothing(df, col, groupby, smoothing_value=1,
     """
     if condition_col is None:
         lagged_ratios = lagged_ratio(df, groupby=groupby,
-                                     calc_colname=col, fillna=0)
+                                     calc_colname=col, fillna=prior)
 
     lagged_counts = count_by_group(df, groupby=groupby)
     smoothing = 1 / (1 + np.exp(-(lagged_counts - min_samples_leaf) / smoothing_value))
