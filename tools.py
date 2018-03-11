@@ -21,11 +21,17 @@ def get_mae_loss(y, ypred):
     return np.sum([abs(y[i]-ypred[i]) for i in range(n)]) / float(n)
 
 
+@jit
 def get_wale_loss(y, ypred):
     assert len(y) == len(ypred)
     n = len(y)
     value = np.sum([min(0.4, abs(y[i]-ypred[i])) for i in range(n)])
-    return value / float(n)
+    return -value / float(n)
+
+
+def wale_lgb(truth, predictions):
+    score = get_wale_loss(truth, predictions)
+    return 'wale', score, True
 
 
 def get_test_ixs(targets):
