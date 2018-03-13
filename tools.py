@@ -26,11 +26,11 @@ def get_wale_loss(y, ypred):
     assert len(y) == len(ypred)
     n = len(y)
     value = np.sum([min(0.4, abs(y[i]-ypred[i])) for i in range(n)])
-    return -value / float(n)
+    return value / float(n)
 
 
 def wale_lgb(truth, predictions):
-    score = get_wale_loss(truth, predictions)
+    score = -1 * get_wale_loss(truth, predictions)
     return 'wale', score, True
 
 
@@ -264,7 +264,7 @@ def sample_params(random_func, columns, results_path, random=False, metric='mae'
     if random:
         params = random_func()
     else:
-        params = sample_with_RFR(70, random_func, columns, results_path, metric=metric)
+        params = sample_with_RFR(100, random_func, columns, results_path, metric=metric)
     return params
 
 
@@ -314,5 +314,3 @@ def log_transform(targets):
 
 def inv_log_transform(targets):
     return np.exp(targets) - 1
-
-
