@@ -99,6 +99,8 @@ def lagged_values_by_group_2dfs(df_train, df_test, col,
     max_dates = df_train[[groupby, date_col]].groupby(by=groupby)[date_col].agg(['max'])
     max_dates = max_dates.reset_index().rename(columns={'index': groupby, 'max': date_col})
     df_train_temp = max_dates.merge(df_train, how='inner', on=[groupby, date_col])
+    df_train_temp = df_train_temp.groupby(by=[groupby, date_col])[col].agg(['mean'])
+    df_train_temp = df_train_temp.reset_index().rename(columns={'mean': col})
     # Merge with test using the groupby col:
     df_test_result = df_test_temp.merge(df_train_temp, on=groupby, how='left').reset_index()
     df_test_result = df_test_result.fillna(fillna)

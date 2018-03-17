@@ -44,9 +44,9 @@ def test_lagged_values_by_group():
 def test_lagged_values_two_dfs():
     ''' returns the features only for the test '''
     df_train = pd.DataFrame({
-        'recordingdate': ['2012-01-01', '2012-02-02', '2012-02-03', '2013-01-01'],
-        'saleprice_log': [12, 14, 15, 3],
-        'group': [1, 1, 1, 2]
+        'recordingdate': ['2012-01-01', '2012-02-02', '2012-02-03', '2012-02-03','2013-01-01'],
+        'saleprice_log': [12, 14, 15, 17, 3],
+        'group': [1, 1, 1, 1, 2]
         })
     df_train['recordingdate'] = pd.to_datetime(df_train['recordingdate'])
     df_test = pd.DataFrame({
@@ -58,5 +58,5 @@ def test_lagged_values_two_dfs():
             df_train, df_test,
             'saleprice_log',
             'group', 'recordingdate', fillna=-1)
-    expected = [15, 3, -1]
+    expected = [16, 3, -1]
     assert(np.allclose(result, expected))
