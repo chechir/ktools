@@ -1,6 +1,6 @@
 from sklearn.ensemble import RandomForestRegressor as RFR
 from collections import defaultdict
-from million._config import NULL_VALUE
+# from million._config import NULL_VALUE
 import cPickle
 import json
 import numpy as np
@@ -34,9 +34,9 @@ def wale_lgb(truth, predictions):
     return 'wale', score, True
 
 
-def get_test_ixs(targets):
-    ixs = targets == NULL_VALUE
-    return ixs
+# def get_test_ixs(targets):
+#     ixs = targets == NULL_VALUE
+#     return ixs
 
 
 def ix_to_bool(ix, length):
