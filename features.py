@@ -106,3 +106,36 @@ def lagged_values_by_group_2dfs(df_train, df_test, col,
     df_test_result = df_test_result.fillna(fillna)
     return df_test_result[col].values
 
+
+def units_to_previous(v, ignore_in_same_period=True, fillna=-1):
+    temp = np.r_[np.nan, v[:-1]]
+    result = v - temp
+    if ignore_in_same_period:
+        zero_ixs = result == 0
+        result[zero_ixs] = np.nan
+        result = tools.ffill(result)
+        result = tools.fillna(result, fillna)
+    return result
+
+
+def grouped_unit_to_previous(df, groupby, date_col):
+    result = tools.group_apply(df[date_col].values, df[groupby].values, units_to_previous)
+    return result
+
+
+def grouped_unit_to_previous_2dfs(df_train, df_test, groupby, date_col, fillna=-1):
+    df_test_temp = df_test[[date_col, groupby]]
+    df_train_temp = df_train[[groupby, date_col]]
+    df_train_temp = df_train_temp.loc[df_train_temp[date_col].values < df_test_temp[date_col].values[0]]
+    # Compute last value for train_df
+    max_dates = df_train[[groupby, date_col]].groupby(by=groupby)[date_col].agg(['max'])
+    max_dates = max_dates.reset_index().rename(columns={'index': groupby, 'max': date_col})
+    df_train_temp = max_dates.merge(df_train_temp, how='inner', on=[groupby, date_col])
+    df_train_temp = df_train_temp.groupby(by=[groupby, date_col])[date_col].agg(['count'])
+    df_train_temp = df_train_temp.reset_index().rename(columns={'count': 'count'})
+    # Merge with test using the groupby col:
+    df_test_result = df_test_temp.merge(df_train_temp, on=groupby, how='left').reset_index()
+    result = df_test_result[date_col + '_x'].values - df_test_result[date_col + '_y'].values
+    result = tools.fillna(result, fillna)
+    assert not np.any(result == 0)
+    return result

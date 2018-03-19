@@ -60,3 +60,36 @@ def test_lagged_values_two_dfs():
             'group', 'recordingdate', fillna=-1)
     expected = [16, 3, -1]
     assert(np.allclose(result, expected))
+
+
+def test_units_to_previous():
+    v = np.array([2010, 2013, 2014, 2015, 2015, 2015])
+    result = features.units_to_previous(v)
+    expected = [-1, 3, 1, 1, 1, 1]
+    assert(np.allclose(result, expected))
+
+
+def test_grouped_units_to_previous():
+    df = pd.DataFrame({
+        'year': [2010, 2013, 2014, 2015, 2015, 2001],
+        'group': [1, 1, 1, 1, 1, 2]
+        })
+    result = features.grouped_unit_to_previous(df, 'group', 'year')
+    expected = [-1, 3, 1, 1, 1, -1]
+    assert(np.allclose(result, expected))
+
+
+def test_grouped_unit_to_previous_2dfs():
+    ''' returns the features only for the test '''
+    df_train = pd.DataFrame({
+        'year': [2010, 2013, 2014, 2015, 2015, 2001],
+        'group': [1, 1, 1, 1, 1, 2]
+        })
+    df_test = pd.DataFrame({
+        'year': [2017, 2017, 2017],
+        'group': [1, 2, 3]
+        })
+    result = features.grouped_unit_to_previous_2dfs(
+            df_train, df_test, 'group', 'year', fillna=-1)
+    expected = [2, 16, -1]
+    assert(np.allclose(result, expected))

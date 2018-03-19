@@ -163,6 +163,28 @@ def _convert_int_indices_to_bool_indices_if_necessary(ixs, kwargs):
     return ixs
 
 
+def ffill(values):
+    assert len(values.shape) == 1 or values.shape[1] == 1, 'ffill only works for vector'
+    values = np.atleast_2d(values)
+    mask = is_null(values)
+    idx = np.where(~mask, np.arange(mask.shape[1]), 0)
+    idx = np.maximum.accumulate(idx, axis=1, out=idx)
+    out = values[np.arange(idx.shape[0])[:, None], idx]
+    out = out.reshape(-1,)
+    return out
+
+
+def is_null(*args, **kwargs):
+    return pd.isnull(*args, **kwargs)
+
+
+def bfill(values):
+    reversed_values = values[::-1]
+    reversed_values = ffill(reversed_values)
+    values = reversed_values[::-1]
+    return values
+
+
 def get_logger(file_name):
     logger_format = '%(asctime)s - %(filename)s - %(message)s'
     logging.basicConfig(filename=file_name, level=logging.DEBUG, format=logger_format)
