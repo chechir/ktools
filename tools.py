@@ -1,3 +1,6 @@
+import os
+import sys
+
 from collections import defaultdict
 from numba import jit
 from sklearn.ensemble import RandomForestRegressor as RFR
@@ -6,9 +9,15 @@ import fnmatch
 import json
 import logging
 import numpy as np
-import os
 import pandas as pd
 import seamless as ss
+
+
+def get_args():
+    args = sys.argv
+    dot_py_ix = np.where(['.py' in arg for arg in args])[0][0]
+    args = args[(dot_py_ix+1):]
+    return args
 
 
 def ensemble_preds(predictions, weights):
