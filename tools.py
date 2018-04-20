@@ -290,7 +290,7 @@ def sample_params(random_func, columns, results_path, random=False, metric='mae'
     return params
 
 
-def sample_with_RFR(num_elements, random_func, columns, results_path, metric='mae'):
+def sample_with_RFR(num_elements, random_func, columns, results_path, metric='wale'):
     # TODO: make sure this thing does one thing only
     random_data = [random_func() for _ in range(num_elements)]
     random_df = ss.DDF(random_data)
