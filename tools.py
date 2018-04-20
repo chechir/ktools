@@ -1,14 +1,23 @@
-from sklearn.ensemble import RandomForestRegressor as RFR
+import os
+import sys
+
 from collections import defaultdict
-# from million._config import NULL_VALUE
+from numba import jit
+from sklearn.ensemble import RandomForestRegressor as RFR
 import cPickle
+import fnmatch
 import json
+import logging
 import numpy as np
 import pandas as pd
-import os
 import seamless as ss
-import logging
-from numba import jit
+
+
+def get_args():
+    args = sys.argv
+    dot_py_ix = np.where(['.py' in arg for arg in args])[0][0]
+    args = args[(dot_py_ix+1):]
+    return args
 
 
 def ensemble_preds(predictions, weights):
@@ -32,11 +41,6 @@ def get_wale_loss(y, ypred):
 def wale_lgb(truth, predictions):
     score = -1 * get_wale_loss(truth, predictions)
     return 'wale', score, True
-
-
-# def get_test_ixs(targets):
-#     ixs = targets == NULL_VALUE
-#     return ixs
 
 
 def ix_to_bool(ix, length):
@@ -225,6 +229,22 @@ def dropbox():
 def experiments():
     dropbox_path = dropbox()
     path = dropbox_path + 'experiments/'
+    return path
+
+
+def recursive_glob(directory, expression):
+    """ Searches recursively for a pattern in a directory.  """
+    directory = ensure_path_ends_in_forward_slash(directory)
+    matches = []
+    for root, sub_dirnames, filenames in os.walk(directory):
+        file_paths = [root + '/' + f for f in filenames]
+        for file_path in fnmatch.filter(file_paths, expression):
+            matches.append(file_path)
+    return matches
+
+
+def ensure_path_ends_in_forward_slash(path):
+    path = path + '/' if not path.endswith('/') else path
     return path
 
 
